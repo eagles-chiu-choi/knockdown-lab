@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "PickupBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "ItemDefinition.h"
 
 // Sets default values
@@ -18,17 +19,20 @@ APickupBase::APickupBase()
 	// Attach the sphere component to the mesh component
 	SphereComponent->SetupAttachment(PickupMeshComponent);
 
+
 	// Set the sphere's collision radius
-	SphereComponent->SetSphereRadius(32.f);
+	SphereComponent->SetSphereRadius(150.f);
 }
 
 // Called when the game starts or when spawned
+FTimerHandle InstantPickupTimerHandle;
 void APickupBase::BeginPlay()
 {
 	Super::BeginPlay();
 	
 	// Initialize this pickup with default values
 	InitializePickup();
+	GetWorldTimerManager().SetTimer(InstantPickupTimerHandle, this, &APickupBase::InstantPickupF, 1.f, false);
 }
 
 // Called every frame
@@ -43,18 +47,15 @@ void APickupBase::Tick(float DeltaTime)
 */
 void APickupBase::InitializePickup()
 {
+	PickupDataTable.LoadSynchronous();
 	if (PickupDataTable && !PickupItemID.IsNone())
 	{
 		// Retrieve the item data associated with this pickup from the Data Table
 		const FItemData* ItemDataRow = PickupDataTable->FindRow<FItemData>(PickupItemID, PickupItemID.ToString());
-		ReferenceItem = NewObject<UItemDefinition>(this, UItemDefinition::StaticClass());
 
-		ReferenceItem->ID = ItemDataRow->ID;
-		ReferenceItem->ItemType = ItemDataRow->ItemType;
-		ReferenceItem->ItemText = ItemDataRow->ItemText;
-		ReferenceItem->WorldMesh = ItemDataRow->ItemBase->WorldMesh;
 		UItemDefinition* TempItemDefinition = ItemDataRow->ItemBase.Get();
-
+		// Create a copy of the item with the class type
+		ReferenceItem = TempItemDefinition->CreateItemCopy();
 		// Check if the mesh is currently loaded by calling IsValid().
 		if (TempItemDefinition->WorldMesh.IsValid()) {
 			// Set the pickup's mesh to the associated item's mesh
@@ -72,23 +73,20 @@ void APickupBase::InitializePickup()
 
 		// Register the Overlap Event
 		SphereComponent->OnComponentBeginOverlap.AddDynamic(this, &APickupBase::OnSphereBeginOverlap);
+		disabled = false;
 	}
 }
 
 void APickupBase::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Yellow, TEXT("Attempting a pickup collision"));
 	// Checking if it's an AdventureCharacter overlapping
 	AAdventureCharacter* Character = Cast<AAdventureCharacter>(OtherActor);
 
 	if (Character != nullptr)
 	{
-		// Unregister from the Overlap Event so it is no longer triggered
-		SphereComponent->OnComponentBeginOverlap.RemoveAll(this);
-		// Set this pickup to be invisible and disable collision
-		PickupMeshComponent->SetVisibility(false);
-		PickupMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		SphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		// Give the item to the character
+		Character->GiveItem(ReferenceItem);
+		Disable();
 	}
 	if (bShouldRespawn)
 	{
@@ -96,6 +94,17 @@ void APickupBase::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent,
 
 	}
 
+}
+
+void APickupBase::Disable()
+{
+	// Unregister from the Overlap Event so it is no longer triggered
+	SphereComponent->OnComponentBeginOverlap.RemoveAll(this);
+	// Set this pickup to be invisible and disable collision
+	PickupMeshComponent->SetVisibility(false);
+	PickupMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SphereComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	disabled = true;
 }
 
 /**
@@ -119,8 +128,26 @@ void APickupBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 			// Set the pickup's mesh to the associated item's mesh
 			PickupMeshComponent->SetStaticMesh(TempItemDefinition->WorldMesh.Get());
 			// Set the sphere's collision radius
-			SphereComponent->SetSphereRadius(32.f);
+			SphereComponent->SetSphereRadius(150.f);
 
+		}
+	}
+}
+bool APickupBase::IsDisabled()
+{
+	return disabled;
+}
+
+void APickupBase::InstantPickupF()
+{
+	if (InstantPickup)
+	{
+		AAdventureCharacter* Character = Cast<AAdventureCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+		if (Character != nullptr)
+		{
+		// Give the item to the character
+		Character->GiveItem(ReferenceItem);
+		Disable();
 		}
 	}
 }

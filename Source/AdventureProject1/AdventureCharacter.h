@@ -8,17 +8,17 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h" 
 #include "InputActionValue.h"
+#include "MyPlayerState.h"
 #include "AdventureCharacter.generated.h"
 
-
-class UInputMappingContext;
-class UInputAction;
-class UInputComponent;
+class AEquippableToolBase;
 class UAnimBlueprint;
+class UEquippableToolDefinition;
 class UInputMappingContext;
 class UInputAction;
 class UInputComponent;
-
+class UItemDefinition;
+class UInventoryComponent;
 UCLASS()
 
 class ADVENTUREPROJECT1_API AAdventureCharacter : public ACharacter
@@ -40,10 +40,18 @@ protected:
 	// Look Input Actions
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* LookAction;
-
 	// Jump Input Actions
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	TObjectPtr<UInputAction> JumpAction;
+
+	// Use Input Actions
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	TObjectPtr<UInputAction> UseAction;
+
+	// The currently-equipped tool
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Tools)
+	TObjectPtr<AEquippableToolBase> EquippedTool;
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -57,6 +65,25 @@ public:
 	// Handles Look Input
 	UFUNCTION()
 	void Look(const FInputActionValue& Value);
+	// Returns whether or not the player already owns this tool
+	UFUNCTION()
+	bool IsToolAlreadyOwned(UEquippableToolDefinition* ToolDefinition);
+	// Attaches and equips a tool to the player
+	UFUNCTION()
+	void AttachTool(UEquippableToolDefinition* ToolDefinition);
+	// Public function that other classes can call to attempt to give an item to the player
+	UFUNCTION()
+	void GiveItem(UItemDefinition* ItemDefinition);
+	// Returns the location in the world the character is looking at
+	UFUNCTION()
+	FVector GetCameraTargetLocation();
+	// Decrease HP by damage
+	UFUNCTION()
+	float DamageToCharacter(float damageAmount);
+	UFUNCTION()
+	float HealToCharacter(float healAmount);
+	UFUNCTION()
+	void GetBall();
 	// First Person camera
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	UCameraComponent* FirstPersonCameraComponent;
@@ -80,4 +107,23 @@ public:
 	// First Person animations
 	UPROPERTY(EditAnywhere, Category = Animation)
 	UAnimBlueprint* FirstPersonDefaultAnim;
-};
+	// Inventory Component
+	UPROPERTY(VisibleAnywhere, Category = Inventory)
+	TObjectPtr<UInventoryComponent> InventoryComponent;
+	// Player State
+	UPROPERTY(VisibleAnywhere, Category = State)
+	AMyPlayerState* MyPlayerState;
+	// Init_HP
+	UPROPERTY(EditAnywhere, Category = State)
+	float InitialHp = 100.f;
+
+	// Current_HP
+	UPROPERTY(EditAnywhere, Category = State)
+	float CurrentHp;
+
+	UPROPERTY(VisibleAnywhere)
+	AEquippableToolBase* ToolToEquip;
+
+	UFUNCTION()
+	void BallCheck();
+};	

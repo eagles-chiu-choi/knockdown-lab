@@ -20,19 +20,29 @@ public:
 	APickupBase();
 	// Initializes this pickup with values from the data table.
 	void InitializePickup();
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+		// Code for only manually disabling the instance.
+	UFUNCTION()
+	void Disable();
+	UFUNCTION()
+	bool IsDisabled();
 
 	// The ID of this pickup in the associated data table.
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Table")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup | Item Table")
 	FName PickupItemID;
 	// Data table that contains this pickup.
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Table")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup | Item Table")
 	TSoftObjectPtr<UDataTable> PickupDataTable;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup | Instant Pickup")
+	bool InstantPickup = false;
 	// Data asset associated with this item.
 	UPROPERTY(VisibleAnywhere, Category = "Pickup | Reference Item")
 	TObjectPtr<UItemDefinition> ReferenceItem;
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+	// Disabled?
+	bool disabled = true;
+
 
 	// The mesh component to represent this pickup in the world.
 	UPROPERTY(VisibleDefaultsOnly, Category = "Pickup | Mesh")
@@ -64,5 +74,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	UFUNCTION()
+	void InstantPickupF();
 
 };
